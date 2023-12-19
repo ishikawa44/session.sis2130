@@ -1,4 +1,4 @@
-import os #дада
+import os #Hello world
 import tkinter as tk
 import logging
 from datetime import datetime
