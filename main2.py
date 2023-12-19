@@ -1,21 +1,21 @@
-import os #Hello world
-import tkinter as tk
-import logging
-from datetime import datetime
-from tkinter import filedialog, messagebox, simpledialog
-from Crypto.PublicKey import RSA
+import os #Импорт взаимодействия с системой и файлами системы
+import tkinter as tk #Импорт графического интерфейса
+import logging #Импорт логов
+from datetime import datetime #Импорт текущего системного времени
+from tkinter import filedialog, messagebox, simpledialog #Импорт взаимодействия с директориями и выбор директории
+from Crypto.PublicKey import RSA #Импорт алгоритмов RSA и AES
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
 
 class FileEncryptorApp:
-    def __init__(self, root):
+    def __init__(self, root): #Инициализация приложения, моздание кнопок, привязка обработчиков событий к кнопкам
         self.root = root
-        self.root.title("File Encryptor")
+        self.root.title("File Encryptor") #Название окна
 
-        self.label = tk.Label(root, text="Выберите действие:", font=("Helvetica", 16))
+        self.label = tk.Label(root, text="Выберите действие:", font=("Helvetica", 16)) #Заголовок
         self.label.pack(pady=10)
 
-        self.button_generate_keys = tk.Button(root, text="Генерировать ключи", command=self.generate_keys,
+        self.button_generate_keys = tk.Button(root, text="Генерировать ключи", command=self.generate_keys, #Генерация RSA-ключей для шифрования и дешифрования файлов
                                               font=("Helvetica", 12), bg="#4CAF50", fg="white", padx=20, pady=10)
         self.button_generate_keys.pack(pady=10)
 
