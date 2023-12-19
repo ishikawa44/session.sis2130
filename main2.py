@@ -131,30 +131,31 @@ def encrypt(dest):#Получение файла для шифровки в фу
 
 
 
-def decrypt(dest):
+def decrypt(dest): #Функция дешифровки
     try:
-        if os.path.isfile("private.pem"):
-            password = get_password()
-            priv_key_rsa = RSA.import_key(open("private.pem").read(), passphrase=password)
-            with open(dest, "rb") as file_in:
+        if os.path.isfile("private.pem"):#Проверка существования файла с закрытым ключом
+            password = get_password()#Запрос пароля для расшифровки
+            priv_key_rsa = RSA.import_key(open("private.pem").read(), passphrase=password)#Используя пароль импортируем ключ rsa
+            with open(dest, "rb") as file_in:#Открытие файла с зашифрованными даными в двоичном коде
                 enc_session_key, nonce, tag = [file_in.read(x) for x in (priv_key_rsa.size_in_bytes(), 16, 16)]
+                # Чтение зашифрованного ключа сеанса, случайного числа инициализации (nonce) и кода аутентификации сообщения (MAC) по отдельности.
 
-            chips_rsa = PKCS1_OAEP.new(priv_key_rsa)
-            session_key = chips_rsa.decrypt(enc_session_key)
+            chips_rsa = PKCS1_OAEP.new(priv_key_rsa)#Создание объекта для дешифрования по схеме PKCS1_OAEP
+            session_key = chips_rsa.decrypt(enc_session_key)#Дешифровка ключа сеанся с помощью chips_rsa
 
-            chips_aes = AES.new(session_key, AES.MODE_EAX, nonce)
-            with open(dest, "rb") as file_in:
-                file_in.seek(priv_key_rsa.size_in_bytes() + 16 + 16)
-                chips_text = file_in.read()
+            chips_aes = AES.new(session_key, AES.MODE_EAX, nonce)#Создается объект для дешифрования файла AES в режиме EAX с ключом сеанса session_key и nonce.
+            with open(dest, "rb") as file_in:# Файл dest снова открывается для чтения.
+                file_in.seek(priv_key_rsa.size_in_bytes() + 16 + 16)# Пропускаются уже прочитанные данные (зашифрованный ключ сеанса, nonce и MAC).
+                chips_text = file_in.read()#Cчитывается оставшаяся часть файла, содержащая зашифрованные данные.
 
-            file_name, _ = os.path.splitext(os.path.basename(dest))
-            decrypted_file_name = file_name
+            file_name, _ = os.path.splitext(os.path.basename(dest))#Извлекается имя файла без расширения.
+            decrypted_file_name = file_name#Дешифрованный файл сохраняется под оригинальным именем.
 
-            data = chips_aes.decrypt_and_verify(chips_text, tag)
-            with open(os.path.join(os.path.dirname(dest), decrypted_file_name), "wb") as file_out:
-                file_out.write(data)
+            data = chips_aes.decrypt_and_verify(chips_text, tag)#Данные файла дешифруются с помощью chips_aes и одновременно проверяется их целостность с помощью MAC.
+            with open(os.path.join(os.path.dirname(dest), decrypted_file_name), "wb") as file_out:#Файл с дешифрованными данными сохраняется в директории исходного файла.
+                file_out.write(data)#Дешифрованные данные записываются в файл.
             print(f'{dest} дешифрован')
-            os.remove(dest)
+            os.remove(dest)# Исходный зашифрованный файл удаляется после успешного дешифрования
 
             decrypted_file_path = os.path.join(os.path.dirname(dest), decrypted_file_name)
             logging.info(f"Файл {dest} дешифрован в {datetime.now()} и сохранен как {decrypted_file_path}")
@@ -164,20 +165,20 @@ def decrypt(dest):
         raise Exception(f"Ошибка при дешифровании файла {dest}: {str(e)}")
 
 
-def get_password():
+def get_password():#Функция ввода пароля
     password = simpledialog.askstring("Password", "Введите пароль для защиты закрытого ключа:", show='*')
     return password
 
 
-def user_change_scan_dir(user_change):
-    if user_change == "1":
-        generate_priv_pub_key()
+def user_change_scan_dir(user_change):#функция обрабатывает пользовательский выбор в приложении для шифрования/дешифрования файлов.
+    if user_change == "1":#Условное выполнение алгоритмов
+        generate_priv_pub_key()#Вызов функции для генерации ключей
     elif user_change == "2":
         dir_crypt = input('\n[+] Введите директорию для шифрования: ')
         print(" ")
         while not os.path.isdir(dir_crypt):
             dir_crypt = input('\n[-] Нет такой папки\n[+] Введите директорию для шифрования: ')
-        for address, dirs, files in os.walk(dir_crypt):
+        for address, dirs, files in os.walk(dir_crypt):#Перебор всех файлов в выбранной директории с помощью os.walk.
             for name in files:
                 encrypt(os.path.join(address, name))
         main()
