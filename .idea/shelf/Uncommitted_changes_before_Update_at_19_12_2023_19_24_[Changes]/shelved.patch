@@ -1,0 +1,174 @@
+Index: main2.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import os #Импорт взаимодействия с системой и файлами системы\r\nimport tkinter as tk #Импорт графического интерфейса\r\nimport logging #Импорт логов\r\nfrom datetime import datetime #Импорт текущего системного времени\r\nfrom tkinter import filedialog, messagebox, simpledialog #Импорт взаимодействия с директориями и выбор директории\r\nfrom Crypto.PublicKey import RSA #Импорт алгоритмов RSA и AES\r\nfrom Crypto.Random import get_random_bytes\r\nfrom Crypto.Cipher import AES, PKCS1_OAEP\r\n\r\nclass FileEncryptorApp:\r\n    def __init__(self, root): #Инициализация приложения, моздание кнопок, привязка обработчиков событий к кнопкам\r\n        self.root = root\r\n        self.root.title(\"File Encryptor\") #Название окна\r\n\r\n        self.label = tk.Label(root, text=\"Выберите действие:\", font=(\"Helvetica\", 16)) #Заголовок\r\n        self.label.pack(pady=10)\r\n\r\n        self.button_generate_keys = tk.Button(root, text=\"Генерировать ключи\", command=self.generate_keys, #Генерация RSA-ключей для шифрования и дешифрования файлов\r\n                                              font=(\"Helvetica\", 12), bg=\"#4CAF50\", fg=\"white\", padx=20, pady=10)\r\n        self.button_generate_keys.pack(pady=10)\r\n\r\n        self.button_encrypt = tk.Button(root, text=\"Зашифровать файлы\", command=self.encrypt_files,\r\n                                        font=(\"Helvetica\", 12), bg=\"#007BFF\", fg=\"white\", padx=20, pady=10)\r\n        self.button_encrypt.pack(pady=10)\r\n\r\n        self.button_decrypt = tk.Button(root, text=\"Дешифровать файлы\", command=self.decrypt_files,\r\n                                        font=(\"Helvetica\", 12), bg=\"#DC3545\", fg=\"white\", padx=20, pady=10)\r\n        self.button_decrypt.pack(pady=10)\r\n\r\n        self.button_exit = tk.Button(root, text=\"Выход\", command=root.destroy,\r\n                                     font=(\"Helvetica\", 12), bg=\"#6C757D\", fg=\"white\", padx=20, pady=10)\r\n        self.button_exit.pack(pady=10)\r\n\r\n    def generate_keys(self):\r\n        password = self.get_password()\r\n        try:\r\n            generate_priv_pub_key(password)\r\n            self.show_message(\"Ключи сгенерированы.\")\r\n        except Exception as e:\r\n            self.show_message(f\"Ошибка при генерации ключей: {str(e)}\")\r\n\r\n    def encrypt_files(self):\r\n        dir_crypt = self.ask_directory(\"Выберите директорию для шифрования:\")\r\n        if dir_crypt:\r\n            try:\r\n                for address, dirs, files in os.walk(dir_crypt):\r\n                    for name in files:\r\n                        encrypt(os.path.join(address, name))\r\n                self.show_message(\"Файлы зашифрованы.\")\r\n            except Exception as e:\r\n                self.show_message(f\"Ошибка при шифровании файлов: {str(e)}\")\r\n\r\n    def decrypt_files(self):\r\n        dir_crypt = self.ask_directory(\"Выберите директорию для дешифровки:\")\r\n        if dir_crypt:\r\n            try:\r\n                for address, dirs, files in os.walk(dir_crypt):\r\n                    for name in files:\r\n                        decrypt(os.path.join(address, name))\r\n                self.show_message(\"Файлы дешифрованы.\")\r\n            except Exception as e:\r\n                self.show_message(f\"Ошибка при дешифровании файлов: {str(e)}\")\r\n\r\n    def ask_directory(self, message):\r\n        dir_crypt = filedialog.askdirectory(title=message)\r\n        return dir_crypt\r\n\r\n    def show_message(self, message):\r\n        messagebox.showinfo(\"File Encryptor\", message)\r\n\r\n    def get_password(self):\r\n        password = simpledialog.askstring(\"Password\", \"Введите пароль для защиты закрытого ключа:\", show='*')\r\n        return password\r\n\r\n\r\ndef generate_priv_pub_key(password=None):\r\n    try:\r\n        key = RSA.generate(2048)\r\n        with open('private.pem', 'wb') as priv:\r\n            if password:\r\n                enc_key = key.export_key(passphrase=password, pkcs=8, protection=\"scryptAndAES128-CBC\")\r\n                priv.write(enc_key)\r\n            else:\r\n                priv.write(key.export_key())\r\n\r\n        print('\\n[+] Приватный ключ \"private.pem\" сохранен')\r\n\r\n        with open('public.pem', 'wb') as pub:\r\n            pub.write(key.publickey().export_key())\r\n        print('[+] Публичный ключ \"public.pem\" сохранен')\r\n    except Exception as e:\r\n        raise Exception(f\"Ошибка при генерации ключей: {str(e)}\")\r\n\r\n\r\nLOG_FORMAT = \"%(asctime)s - %(levelname)s - %(message)s\"\r\nLOG_FILE = \"file_encryptor.log\"\r\n\r\nlogging.basicConfig(filename=LOG_FILE, level=logging.INFO, format=LOG_FORMAT)\r\n\r\ndef encrypt(dest):\r\n    try:\r\n        with open(dest, 'rb') as enc_file:\r\n            data_enc = enc_file.read()\r\n\r\n        if os.path.isfile('public.pem'):\r\n            public_rsa = RSA.import_key(open('public.pem').read())\r\n            session_key = get_random_bytes(16)\r\n\r\n            chips_rsa = PKCS1_OAEP.new(public_rsa)\r\n            enc_session_key = chips_rsa.encrypt(session_key)\r\n\r\n            chips_aes = AES.new(session_key, AES.MODE_EAX)\r\n            chips_text, tag = chips_aes.encrypt_and_digest(data_enc)\r\n\r\n            file_name, _ = os.path.splitext(os.path.basename(dest))\r\n            encrypted_file_name = file_name + '.bin'\r\n\r\n            with open(os.path.join(os.path.dirname(dest), encrypted_file_name), 'wb') as file_out:\r\n                for x in (enc_session_key, chips_aes.nonce, tag, chips_text):\r\n                    file_out.write(x)\r\n            print(f'{dest} зашифрован')\r\n            os.remove(dest)\r\n\r\n            # Логирование информации о зашифрованном файле\r\n            encrypted_file_path = os.path.join(os.path.dirname(dest), encrypted_file_name)\r\n            logging.info(f\"Файл {dest} зашифрован в {datetime.now()} и сохранен как {encrypted_file_path}\")\r\n        else:\r\n            print('\\n[+] Нет публичного ключа для шифрования. Сгенерируйте ключи.')\r\n    except Exception as e:\r\n        raise Exception(f\"Ошибка при шифровании файла {dest}: {str(e)}\")\r\n\r\n\r\n\r\ndef decrypt(dest):\r\n    try:\r\n        if os.path.isfile(\"private.pem\"):\r\n            password = get_password()\r\n            priv_key_rsa = RSA.import_key(open(\"private.pem\").read(), passphrase=password)\r\n            with open(dest, \"rb\") as file_in:\r\n                enc_session_key, nonce, tag = [file_in.read(x) for x in (priv_key_rsa.size_in_bytes(), 16, 16)]\r\n\r\n            chips_rsa = PKCS1_OAEP.new(priv_key_rsa)\r\n            session_key = chips_rsa.decrypt(enc_session_key)\r\n\r\n            chips_aes = AES.new(session_key, AES.MODE_EAX, nonce)\r\n            with open(dest, \"rb\") as file_in:\r\n                file_in.seek(priv_key_rsa.size_in_bytes() + 16 + 16)\r\n                chips_text = file_in.read()\r\n\r\n            file_name, _ = os.path.splitext(os.path.basename(dest))\r\n            decrypted_file_name = file_name\r\n\r\n            data = chips_aes.decrypt_and_verify(chips_text, tag)\r\n            with open(os.path.join(os.path.dirname(dest), decrypted_file_name), \"wb\") as file_out:\r\n                file_out.write(data)\r\n            print(f'{dest} дешифрован')\r\n            os.remove(dest)\r\n\r\n            decrypted_file_path = os.path.join(os.path.dirname(dest), decrypted_file_name)\r\n            logging.info(f\"Файл {dest} дешифрован в {datetime.now()} и сохранен как {decrypted_file_path}\")\r\n        else:\r\n            print('\\n[+] Нет приватного ключа для дешифровки.\\nСкопируйте ключ \"private.pem\" в папку со скриптом!')\r\n    except Exception as e:\r\n        raise Exception(f\"Ошибка при дешифровании файла {dest}: {str(e)}\")\r\n\r\n\r\ndef get_password():\r\n    password = simpledialog.askstring(\"Password\", \"Введите пароль для защиты закрытого ключа:\", show='*')\r\n    return password\r\n\r\n\r\ndef user_change_scan_dir(user_change):\r\n    if user_change == \"1\":\r\n        generate_priv_pub_key()\r\n    elif user_change == \"2\":\r\n        dir_crypt = input('\\n[+] Введите директорию для шифрования: ')\r\n        print(\" \")\r\n        while not os.path.isdir(dir_crypt):\r\n            dir_crypt = input('\\n[-] Нет такой папки\\n[+] Введите директорию для шифрования: ')\r\n        for address, dirs, files in os.walk(dir_crypt):\r\n            for name in files:\r\n                encrypt(os.path.join(address, name))\r\n        main()\r\n    elif user_change == \"3\":\r\n        dir_crypt = input('\\n[+] Введите директорию для дешифровки: ')\r\n        print(\" \")\r\n        while not os.path.isdir(dir_crypt):\r\n            dir_crypt = input('\\n[-] Нет такой папки\\n[+] Введите директорию для дешифровки: ')\r\n        for address, dirs, files in os.walk(dir_crypt):\r\n            for name in files:\r\n                decrypt(os.path.join(address, name))\r\n        main()\r\n    elif user_change == \"4\":\r\n        exit(0)\r\n    else:\r\n        main()\r\n\r\n\r\ndef main():\r\n    user_change = input('\\n[+] Выберите действие:\\n\\t[1] Генерировать публичный и приватный ключ;\\n'\r\n                        '\\t[2] Зашифровать файлы;\\n\\t[3] Дешифровать файлы;\\n\\t[4] Выход\\n\\t>>> ')\r\n    user_change_scan_dir(user_change)\r\n\r\n\r\nif __name__ == \"__main__\":\r\n    root = tk.Tk()\r\n    app = FileEncryptorApp(root)\r\n    root.mainloop()\r\n\r\n\r\n\r\n\r\n\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/main2.py b/main2.py
+--- a/main2.py	(revision 9df28f6e5543a60cb096f5a176be16ba499756eb)
++++ b/main2.py	(date 1702992261367)
+@@ -7,6 +7,8 @@
+ from Crypto.Random import get_random_bytes
+ from Crypto.Cipher import AES, PKCS1_OAEP
+ 
++
++
+ class FileEncryptorApp:
+     def __init__(self, root): #Инициализация приложения, моздание кнопок, привязка обработчиков событий к кнопкам
+         self.root = root
+@@ -121,6 +123,7 @@
+             print(f'{dest} зашифрован')
+             os.remove(dest)
+ 
++
+             # Логирование информации о зашифрованном файле
+             encrypted_file_path = os.path.join(os.path.dirname(dest), encrypted_file_name)
+             logging.info(f"Файл {dest} зашифрован в {datetime.now()} и сохранен как {encrypted_file_path}")
+@@ -156,6 +159,7 @@
+             print(f'{dest} дешифрован')
+             os.remove(dest)
+ 
++
+             decrypted_file_path = os.path.join(os.path.dirname(dest), decrypted_file_name)
+             logging.info(f"Файл {dest} дешифрован в {datetime.now()} и сохранен как {decrypted_file_path}")
+         else:
+@@ -202,12 +206,10 @@
+     user_change_scan_dir(user_change)
+ 
+ 
++
+ if __name__ == "__main__":
+     root = tk.Tk()
+     app = FileEncryptorApp(root)
+     root.mainloop()
+ 
+ 
+-
+-
+-
+Index: text.txt
+===================================================================
+diff --git a/text.txt b/text.txt
+deleted file mode 100644
+--- a/text.txt	(revision 9df28f6e5543a60cb096f5a176be16ba499756eb)
++++ /dev/null	(revision 9df28f6e5543a60cb096f5a176be16ba499756eb)
+@@ -1,1 +0,0 @@
+-test text
+\ No newline at end of file
+Index: cypher_2/2
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/cypher_2/2 b/cypher_2/2
+new file mode 100644
+--- /dev/null	(date 1702988338857)
++++ b/cypher_2/2	(date 1702988338857)
+@@ -0,0 +1,1 @@
++two
+Index: .idea/misc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"Black\">\r\n    <option name=\"sdkName\" value=\"Python 3.11 (session)\" />\r\n  </component>\r\n  <component name=\"ProjectRootManager\" version=\"2\" project-jdk-name=\"Python 3.11 (session)\" project-jdk-type=\"Python SDK\" />\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+--- a/.idea/misc.xml	(revision 9df28f6e5543a60cb096f5a176be16ba499756eb)
++++ b/.idea/misc.xml	(date 1702986674897)
+@@ -3,5 +3,5 @@
+   <component name="Black">
+     <option name="sdkName" value="Python 3.11 (session)" />
+   </component>
+-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.11 (session)" project-jdk-type="Python SDK" />
++  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.9" project-jdk-type="Python SDK" />
+ </project>
+\ No newline at end of file
+Index: public.pem
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>-----BEGIN PUBLIC KEY-----\r\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5fD16c+K7pNXebuoLcV9\r\nQ2adv7Csa6kgAUHNkYZHRvMBoNy9mTObzZxmXDqsTuPfB/HlYW1PuFU/79cHJq52\r\ni2zjHo949mXJHldbQ62D82LulLTLhdbhZGdt0iP5stisnqmHpqIYeTuAShgqTLVs\r\nzQG19aqaG0x6gvu2nL1TtcriAvbNs/aWuRX6GzXN0ID85U4t6HTivSpHPGJVzTCz\r\no0mFhQ9x7gfEBQb8NMjHbKSpsaxQz1FRxOCJAJfK/MCwkdI6vktC1H+OCEA6YCqW\r\nBODe2E+r2APZZkAZ5dZDSlL1daPyuB6rDgYBJEpHTY1bRMU34sTpn6EJbM4Pe5DL\r\nZwIDAQAB\r\n-----END PUBLIC KEY-----
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/public.pem b/public.pem
+--- a/public.pem	(revision 9df28f6e5543a60cb096f5a176be16ba499756eb)
++++ b/public.pem	(date 1702992136182)
+@@ -1,9 +1,9 @@
+ -----BEGIN PUBLIC KEY-----
+-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5fD16c+K7pNXebuoLcV9
+-Q2adv7Csa6kgAUHNkYZHRvMBoNy9mTObzZxmXDqsTuPfB/HlYW1PuFU/79cHJq52
+-i2zjHo949mXJHldbQ62D82LulLTLhdbhZGdt0iP5stisnqmHpqIYeTuAShgqTLVs
+-zQG19aqaG0x6gvu2nL1TtcriAvbNs/aWuRX6GzXN0ID85U4t6HTivSpHPGJVzTCz
+-o0mFhQ9x7gfEBQb8NMjHbKSpsaxQz1FRxOCJAJfK/MCwkdI6vktC1H+OCEA6YCqW
+-BODe2E+r2APZZkAZ5dZDSlL1daPyuB6rDgYBJEpHTY1bRMU34sTpn6EJbM4Pe5DL
+-ZwIDAQAB
++MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw3o8v0f3vIF4Cv2OOFXB
++frO24B+RdRWV9mrqelISVBj5dA1F22mI/LHgjRIkgZOEzAmEkcdfMUbJ2RjUxAY7
++6+Pat/Awk0F5T9vSkjJ2KC9SBt/DIUFS/zA5XJrBZAws7HuqP2oI16t81e8syudo
++Sp1BckbNg4FFJEdu87l2QPESojj8i6rkBvgYfkoONdS/S3u2/YZehPpY4hQb83Cf
++wyIEyNX3jE2BtzLCdPe2SVekwSHqxrmaspZHjC5gUW69c657XcSIN50CzXZDivLs
++alH+had9msImO8bXPrfQ4OeE/XXY5LluX/8oq/dP0aJpVuyA6J36yh0S+nBYksVA
++bwIDAQAB
+ -----END PUBLIC KEY-----
+\ No newline at end of file
+Index: private.pem
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>-----BEGIN ENCRYPTED PRIVATE KEY-----\r\nMIIFJTBPBgkqhkiG9w0BBQ0wQjAhBgkrBgEEAdpHBAswFAQIB1gY5m6aLLUCAkAA\r\nAgEIAgEBMB0GCWCGSAFlAwQBAgQQoRzCJxqJLFXGh1ugNhsOmwSCBNCoz/upEyxj\r\nu6zvpnpc+gyPUlq2EMCXsVq1/zzH2QDvWLxX7f5xF9KdrhXABHPZYZqUXY+oKhZ4\r\npMh+u287m2gqnXuz6AFQMF6p7SF1gjEhWGYk/geGqL56IDX3FwZCDOxTgwCGXRGj\r\n8rV2r6akmlizv8i01IoC72FXebCKVLZZKPEuLtRLhpMr0FUjg7iQcnytPY3l6w4g\r\n8vlHbjHHpzw8FKURxHpGG/3uLaDzDAFvMWk7jYTMYkXXEXsRoonL2jX3tlYp15e8\r\nTDAzo1uDyOxetWpMwFuFrfJvOHvxVpF656yrnarQneVs4aNx7ECoVe92xRKblRcY\r\nyhkGe1S69Hxij6zIh4FJOirXCa7y2M2gZOWwasyno8ZHaT9bUhmKYg9D0yv9oruC\r\nUSj3yHY0uAiOjKjKpzWRIZ7gkjQCPlgpWmfKyWzXEftq4mZcsAS4RSdL7ahmrDHP\r\nFBUwmInK06VtC8F/LzTMTF0gKKs8SnyOCkRD8Qb58sr024STFn8v/V8HXMamjaHe\r\nwio/pm2ys9aVP3urXvBWTcgNyUEkydk2mxa1b4WISsFMaAI0xhJd7ZaS+F2k+mVk\r\npJ8E0L8aZgzG7r/Lqmebj6RThdv3kdQuMRbq1nSJKIzeul/U+jL5t02edJJSWnkM\r\nP+6ZWFRx6b6DoLra95VS+GP17YjLB3VS/CsU1vz11tf/KGt1sMW1+XBVeb2xq1Oc\r\nYui6Kv+8q0wkkdjvpCpFm80bPsAi3seQTAUPocrB7rpRstEuhLYMQMfa27rCTewa\r\n1VL1j6yusYj64cCpuBD95sUCW8iwI4OkDGrqBWWUJ37EMK0r6YczgKjAaGU1KFJR\r\nIG5k2heRzednALEXBxpOt8hLSOhnlp4YladRHwWV1r60OWdvhPK+FweXum+0KyBC\r\nCRQkl+SpbuQX1Cwvi5Nqbzi0nfLsXxHqzo80iuFnZO94aRM1k+pkoadsgixozOwy\r\nNgGZYODVMI6+HVBqci6HsCJFr/6pumytjgwEfzh3jaAPoDFViJ14VelcVblEBHAb\r\nYkZCw/3XuYHi7Z3knkpM1KEb2hN5SdwkKBobmOmTfkCzqbaiUPse5bXdGPUsK8pr\r\nSrIE0fMATXBjJlVprVwdpYfCpMd8Z/D7xGFfKdtccUgEEIky/CxfSGBEsN4IvKQc\r\nlePkl6/FwbeG7WZUWSZSlrOOdVrKRmpdDmdDld9/SAIUqiPcBazEQspryeF1Xch4\r\neD42mwz4fhZ4LDmaIwzjTEDT1Z8ZrRSpdX9MASD15r6yHjlKArL+yYv9guMp1Zgq\r\nq3nwLTOk6cnrYrgNN/ZrQpVKV1hO55HzJ78nOCqprEHb1dagmkM1n9oxepzYsCMi\r\nr0Mu63fVvkn5GNx1eGDvvrvjhLvVX0euwP6MKP4eDpveRiTM+yn92QBkYPcN4qK8\r\nlfgvXDCazCdXLb0gzLXuCQmb/w7QQ3Mk2F03194oXdERKyT8Dj0SN+ujX/AAL1/e\r\nPldCEdeBv/VJCkqkohISPQfpXsLSP7B9hveoitoq/SfFnxcteN7WZpetq0bTGI5Z\r\nN3EEl4ooWwNey5w+yvwInvcVdx9NjS0A7XWBtUR9q71VJI8F6lzbi1wuC3uIKn9H\r\nrZc88yKLNzwT1wyJBZeKgUFIrAmyYlA7mQ==\r\n-----END ENCRYPTED PRIVATE KEY-----
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/private.pem b/private.pem
+--- a/private.pem	(revision 9df28f6e5543a60cb096f5a176be16ba499756eb)
++++ b/private.pem	(date 1702992266346)
+@@ -1,30 +1,0 @@
+------BEGIN ENCRYPTED PRIVATE KEY-----
+-MIIFJTBPBgkqhkiG9w0BBQ0wQjAhBgkrBgEEAdpHBAswFAQIB1gY5m6aLLUCAkAA
+-AgEIAgEBMB0GCWCGSAFlAwQBAgQQoRzCJxqJLFXGh1ugNhsOmwSCBNCoz/upEyxj
+-u6zvpnpc+gyPUlq2EMCXsVq1/zzH2QDvWLxX7f5xF9KdrhXABHPZYZqUXY+oKhZ4
+-pMh+u287m2gqnXuz6AFQMF6p7SF1gjEhWGYk/geGqL56IDX3FwZCDOxTgwCGXRGj
+-8rV2r6akmlizv8i01IoC72FXebCKVLZZKPEuLtRLhpMr0FUjg7iQcnytPY3l6w4g
+-8vlHbjHHpzw8FKURxHpGG/3uLaDzDAFvMWk7jYTMYkXXEXsRoonL2jX3tlYp15e8
+-TDAzo1uDyOxetWpMwFuFrfJvOHvxVpF656yrnarQneVs4aNx7ECoVe92xRKblRcY
+-yhkGe1S69Hxij6zIh4FJOirXCa7y2M2gZOWwasyno8ZHaT9bUhmKYg9D0yv9oruC
+-USj3yHY0uAiOjKjKpzWRIZ7gkjQCPlgpWmfKyWzXEftq4mZcsAS4RSdL7ahmrDHP
+-FBUwmInK06VtC8F/LzTMTF0gKKs8SnyOCkRD8Qb58sr024STFn8v/V8HXMamjaHe
+-wio/pm2ys9aVP3urXvBWTcgNyUEkydk2mxa1b4WISsFMaAI0xhJd7ZaS+F2k+mVk
+-pJ8E0L8aZgzG7r/Lqmebj6RThdv3kdQuMRbq1nSJKIzeul/U+jL5t02edJJSWnkM
+-P+6ZWFRx6b6DoLra95VS+GP17YjLB3VS/CsU1vz11tf/KGt1sMW1+XBVeb2xq1Oc
+-Yui6Kv+8q0wkkdjvpCpFm80bPsAi3seQTAUPocrB7rpRstEuhLYMQMfa27rCTewa
+-1VL1j6yusYj64cCpuBD95sUCW8iwI4OkDGrqBWWUJ37EMK0r6YczgKjAaGU1KFJR
+-IG5k2heRzednALEXBxpOt8hLSOhnlp4YladRHwWV1r60OWdvhPK+FweXum+0KyBC
+-CRQkl+SpbuQX1Cwvi5Nqbzi0nfLsXxHqzo80iuFnZO94aRM1k+pkoadsgixozOwy
+-NgGZYODVMI6+HVBqci6HsCJFr/6pumytjgwEfzh3jaAPoDFViJ14VelcVblEBHAb
+-YkZCw/3XuYHi7Z3knkpM1KEb2hN5SdwkKBobmOmTfkCzqbaiUPse5bXdGPUsK8pr
+-SrIE0fMATXBjJlVprVwdpYfCpMd8Z/D7xGFfKdtccUgEEIky/CxfSGBEsN4IvKQc
+-lePkl6/FwbeG7WZUWSZSlrOOdVrKRmpdDmdDld9/SAIUqiPcBazEQspryeF1Xch4
+-eD42mwz4fhZ4LDmaIwzjTEDT1Z8ZrRSpdX9MASD15r6yHjlKArL+yYv9guMp1Zgq
+-q3nwLTOk6cnrYrgNN/ZrQpVKV1hO55HzJ78nOCqprEHb1dagmkM1n9oxepzYsCMi
+-r0Mu63fVvkn5GNx1eGDvvrvjhLvVX0euwP6MKP4eDpveRiTM+yn92QBkYPcN4qK8
+-lfgvXDCazCdXLb0gzLXuCQmb/w7QQ3Mk2F03194oXdERKyT8Dj0SN+ujX/AAL1/e
+-PldCEdeBv/VJCkqkohISPQfpXsLSP7B9hveoitoq/SfFnxcteN7WZpetq0bTGI5Z
+-N3EEl4ooWwNey5w+yvwInvcVdx9NjS0A7XWBtUR9q71VJI8F6lzbi1wuC3uIKn9H
+-rZc88yKLNzwT1wyJBZeKgUFIrAmyYlA7mQ==
+------END ENCRYPTED PRIVATE KEY-----
+\ No newline at end of file
+Index: .idea/encodings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/encodings.xml b/.idea/encodings.xml
+new file mode 100644
+--- /dev/null	(date 1702988339751)
++++ b/.idea/encodings.xml	(date 1702988339751)
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="Encoding">
++    <file url="file://$PROJECT_DIR$/file_encryptor.log" charset="windows-1251" />
++  </component>
++</project>
+\ No newline at end of file
