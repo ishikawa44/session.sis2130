@@ -3,6 +3,7 @@ import tkinter as tk #Импорт графического интерфейса
 import logging #Импорт логов
 import sqlite3 #Импорт встроенного субд
 from datetime import datetime #Импорт текущего системного времени
+from sqlite3 import Binary
 from tkinter import filedialog, messagebox, simpledialog #Импорт взаимодействия с директориями и выбор директории
 from Crypto.PublicKey import RSA #Импорт алгоритмов RSA и AES
 from Crypto.Random import get_random_bytes
@@ -11,7 +12,7 @@ from Crypto.Cipher import AES, PKCS1_OAEP
 
 
 class FileEncryptorApp:
-    def __init__(self, root): #Инициализация приложения, моздание кнопок, привязка обработчиков событий к кнопкам
+    def __init__(self, root): #Инициализация приложения, создание кнопок, привязка обработчиков событий к кнопкам
         self.root = root
         self.root.title("File Encryptor") #Название окна
 
@@ -39,21 +40,20 @@ class FileEncryptorApp:
         self.button_exit.pack(pady=10)
 
 
-
     def generate_keys(self):#Функция генерации ключей
         password = self.get_password() #Запрос пароля для шифрования
         try:
             generate_priv_pub_key(password)
-            self.save_password_to_db(1, password)  # Сохранение пароля в базу данных
+            self.save_password_to_db(password)  # Сохранение пароля в базу данных
             self.show_message("Ключи сгенерированы.") #В случае успешной генерации ключей выйдет эта надпись, в ином случае, ошибка
         except Exception as e:
             self.show_message(f"Ошибка при генерации ключей: {str(e)}")
 
-    def save_password_to_db(self, record_number, password):
+    def save_password_to_db(self, password, private_key = open("private.pem").read(), public_key = open("public.pem").read()):
         conn = sqlite3.connect('hints.db') #Установка соединения с базой данных SQLite
         cursor = conn.cursor() #Создание курсора для выполнения операций в базе данных
-        cursor.execute("INSERT OR REPLACE INTO hints (record_number, generated_password) VALUES (?, ?)",
-                       (record_number, password))# Выполнение SQL-запроса INSERT OR REPLACE для добавления или замены записи
+        cursor.execute("""INSERT INTO hints (generated_password, private_key, public_key) VALUES (?, ?, ?)""",
+                       (password, private_key, public_key))# Выполнение SQL-запроса INSERT OR REPLACE для добавления или замены записи
         conn.commit()# Подтверждение всех изменений в базе данных
         conn.close()# Закрытие соединения с базой данных
 
@@ -63,7 +63,7 @@ class FileEncryptorApp:
         if entered_password == "IITU":  # Проверка введенного пароля
             conn = sqlite3.connect('hints.db') #Установка соединения с базой данных SQLite
             cursor = conn.cursor()#Создание курсора для выполнения операций в базе данных
-            cursor.execute("SELECT * FROM hints WHERE record_number = 1") #Получениеи записи по номеру
+            record = cursor.execute("SELECT * FROM hints ORDER BY record_number DESC LIMIT 1") #Получениеи записи по номеру
             record = cursor.fetchone() #Получение первой найденной записи
             conn.close() #Закрытие соединения с базой данных
 
@@ -108,7 +108,7 @@ class FileEncryptorApp:
         return password
 
 
-def generate_priv_pub_key(password=None): #Функция генерации ключа
+def generate_priv_pub_key(password=None, self=None): #Функция генерации ключа
     try:
         key = RSA.generate(2048)#Генерация пары ключей, длиной 2048 бит
         with open('private.pem', 'wb') as priv: #Блок кода открывает файл для записи туда ключей
@@ -123,6 +123,7 @@ def generate_priv_pub_key(password=None): #Функция генерации к�
         with open('public.pem', 'wb') as pub: #открытие файла для публичного ключа
             pub.write(key.publickey().export_key())#Запись публичного ключа в файл
         print('[+] Публичный ключ "public.pem" сохранен')
+
     except Exception as e:
         raise Exception(f"Ошибка при генерации ключей: {str(e)}")
 
@@ -245,5 +246,6 @@ if __name__ == "__main__":
     root = tk.Tk()#Включение окна tkinter
     app = FileEncryptorApp(root)
     root.mainloop()#Запуск цикла tkinter которое следит за изменениями пользователя
+
 
 
