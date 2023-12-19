@@ -19,74 +19,74 @@ class FileEncryptorApp:
                                               font=("Helvetica", 12), bg="#4CAF50", fg="white", padx=20, pady=10)
         self.button_generate_keys.pack(pady=10)
 
-        self.button_encrypt = tk.Button(root, text="Зашифровать файлы", command=self.encrypt_files,
+        self.button_encrypt = tk.Button(root, text="Зашифровать файлы", command=self.encrypt_files, #Шифрование всех файлов во всей директории
                                         font=("Helvetica", 12), bg="#007BFF", fg="white", padx=20, pady=10)
         self.button_encrypt.pack(pady=10)
 
-        self.button_decrypt = tk.Button(root, text="Дешифровать файлы", command=self.decrypt_files,
+        self.button_decrypt = tk.Button(root, text="Дешифровать файлы", command=self.decrypt_files, #Дешифрование всех файлов во всей директории
                                         font=("Helvetica", 12), bg="#DC3545", fg="white", padx=20, pady=10)
         self.button_decrypt.pack(pady=10)
 
-        self.button_exit = tk.Button(root, text="Выход", command=root.destroy,
+        self.button_exit = tk.Button(root, text="Выход", command=root.destroy, #Выход из приложения
                                      font=("Helvetica", 12), bg="#6C757D", fg="white", padx=20, pady=10)
         self.button_exit.pack(pady=10)
 
-    def generate_keys(self):
-        password = self.get_password()
+    def generate_keys(self):#Функция генерации ключей
+        password = self.get_password() #Запрос пароля для шифрования
         try:
             generate_priv_pub_key(password)
-            self.show_message("Ключи сгенерированы.")
+            self.show_message("Ключи сгенерированы.") #В случае успешной генерации ключей выйдет эта надпись, в ином случае, ошибка
         except Exception as e:
             self.show_message(f"Ошибка при генерации ключей: {str(e)}")
 
-    def encrypt_files(self):
-        dir_crypt = self.ask_directory("Выберите директорию для шифрования:")
+    def encrypt_files(self): #Функция для шифрования файла
+        dir_crypt = self.ask_directory("Выберите директорию для шифрования:") #Выбираем директорию для использования в коде
         if dir_crypt:
             try:
-                for address, dirs, files in os.walk(dir_crypt):
-                    for name in files:
-                        encrypt(os.path.join(address, name))
+                for address, dirs, files in os.walk(dir_crypt): #Цикл проходит по всем файлам в директории
+                    for name in files: # Цикл который выполняется для каждолго файла в директории
+                        encrypt(os.path.join(address, name)) #Вызывается функция encrypt для шифрования файлов
                 self.show_message("Файлы зашифрованы.")
             except Exception as e:
                 self.show_message(f"Ошибка при шифровании файлов: {str(e)}")
 
-    def decrypt_files(self):
-        dir_crypt = self.ask_directory("Выберите директорию для дешифровки:")
+    def decrypt_files(self):#Функция дешифровки файла
+        dir_crypt = self.ask_directory("Выберите директорию для дешифровки:") #Выбираем директорию для использования в коде
         if dir_crypt:
             try:
-                for address, dirs, files in os.walk(dir_crypt):
-                    for name in files:
-                        decrypt(os.path.join(address, name))
+                for address, dirs, files in os.walk(dir_crypt): #Цикл проходит по всем файлам в директории
+                    for name in files: # Цикл который выполняется для каждолго файла в директории
+                        decrypt(os.path.join(address, name))#Вызывается функция decrypt для шифрования файлов
                 self.show_message("Файлы дешифрованы.")
             except Exception as e:
                 self.show_message(f"Ошибка при дешифровании файлов: {str(e)}")
 
-    def ask_directory(self, message):
+    def ask_directory(self, message):#функция выбора директории
         dir_crypt = filedialog.askdirectory(title=message)
         return dir_crypt
 
-    def show_message(self, message):
+    def show_message(self, message): #Функция вывода сообщений
         messagebox.showinfo("File Encryptor", message)
 
-    def get_password(self):
+    def get_password(self): #Функция принятия пароля для дешифровки
         password = simpledialog.askstring("Password", "Введите пароль для защиты закрытого ключа:", show='*')
         return password
 
 
-def generate_priv_pub_key(password=None):
+def generate_priv_pub_key(password=None): #Функция генерации ключа
     try:
-        key = RSA.generate(2048)
-        with open('private.pem', 'wb') as priv:
+        key = RSA.generate(2048)#Генерация пары ключей, длиной 2048 бит
+        with open('private.pem', 'wb') as priv: #Блок кода открывает файл для записи туда ключей
             if password:
-                enc_key = key.export_key(passphrase=password, pkcs=8, protection="scryptAndAES128-CBC")
-                priv.write(enc_key)
+                enc_key = key.export_key(passphrase=password, pkcs=8, protection="scryptAndAES128-CBC")#Строка кода шифрует закрытый ключ с помощью алгоритма scryptAndAES128-CBC.
+                priv.write(enc_key)#Запись закрытого ключа в файл
             else:
                 priv.write(key.export_key())
 
-        print('\n[+] Приватный ключ "private.pem" сохранен')
+        print('\n[+] Приватный ключ "private.pem" сохранен') #сообщение о сохранении ключа
 
-        with open('public.pem', 'wb') as pub:
-            pub.write(key.publickey().export_key())
+        with open('public.pem', 'wb') as pub: #открытие файла для публичного ключа
+            pub.write(key.publickey().export_key())#Запись публичного ключа в файл
         print('[+] Публичный ключ "public.pem" сохранен')
     except Exception as e:
         raise Exception(f"Ошибка при генерации ключей: {str(e)}")
@@ -95,16 +95,16 @@ def generate_priv_pub_key(password=None):
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 LOG_FILE = "file_encryptor.log"
 
-logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format=LOG_FORMAT)
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format=LOG_FORMAT)#Настройка системы логирования
 
-def encrypt(dest):
+def encrypt(dest):#Получение файла для шифровки в функцию шифрования
     try:
-        with open(dest, 'rb') as enc_file:
+        with open(dest, 'rb') as enc_file:#открытие в двоичном коде и чтение файла а так же присваивание его переменной data_enc
             data_enc = enc_file.read()
 
-        if os.path.isfile('public.pem'):
-            public_rsa = RSA.import_key(open('public.pem').read())
-            session_key = get_random_bytes(16)
+        if os.path.isfile('public.pem'): #проверка наличия публичного ключа
+            public_rsa = RSA.import_key(open('public.pem').read()) #импорт и сохранение публичного ключа в переменной
+            session_key = get_random_bytes(16) #Генерация 16-байтовый случайный ключ и сохранение его в объекте
 
             chips_rsa = PKCS1_OAEP.new(public_rsa)
             enc_session_key = chips_rsa.encrypt(session_key)
